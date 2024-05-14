@@ -1,0 +1,94 @@
+1. psql -U postgres
+
+2. CREATE DATABASE library_hw;
+
+3. CREATE USER ost WITH ENCRYPTED PASSWORD 'password';
+
+4. GRANT ALL PRIVILEGES ON DATABASE library_hw TO ost;
+
+5. CREATE TABLE books (
+	isbn VARCHAR(20) PRIMARY KEY,
+	title VARCHAR(100) NOT NULL,
+	author VARCHAR(100) NOT NULL,
+	publication_year DATE NOT NULL,
+	genre VARCHAR(100) NOT NULL,
+	number_copies INTEGER CHECK (number_copies >=0),
+	date_of_addition TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	available BOOLEAN DEFAULT TRUE 
+   );
+
+6. SELECT * FROM books ORDER BY book_id ASC;
+
+7. INSERT INTO books (isbn, title, author, publication_year, genre, number_copies)
+   VALUES
+   	('9780451524935', '1984', 'George Orwell', '1949-06-08', 'Science Fiction', 3),
+   	('9780061120084', 'To Kill a Mockingbird', 'Harper Lee', '1960-07-11', 'Fiction', 2),
+   	('9780143039959', 'The Kite Runner', 'Khaled Hosseini', '2003-05-29', 'Fiction', 5),
+   	('9780060935467', 'The Road', 'Cormac McCarthy', '2006-09-26', 'Post-apocalyptic', 1),
+   	('9780446310789', 'One Hundred Years of Solitude', 'Gabriel García Márquez', '1967-05-30', 'Magical Realism', 4);
+
+8. CREATE TABLE users (
+	user_id SERIAL PRIMARY KEY,
+	name VARCHAR(100) NOT NULL,
+	surname VARCHAR(100) NOT NULL,
+	phone_number BIGINT NOT NULL,
+	email VARCHAR(100) NOT NULL,
+	birthday DATE NOT NULL,
+	reserve_contact_number BIGINT NOT NULL,
+	user_type VARCHAR(100),
+	registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+9. SELECT * FROM users;
+
+10. INSERT INTO users (name, surname, phone_number, email, birthday, reserve_contact_number, user_type)
+    VALUES
+	('John', 'Doe', 123456789, 'john@example.com', '1990-05-15', 987654321, 'customer'),
+	('Jane', 'Doe', 987654321, 'jane@example.com', '1992-08-20', 123456789, 'customer'),
+	('Alice', 'Smith', 555555555, 'alice@example.com', '1985-03-10', 999888777, 'customer');
+
+11. CREATE TABLE employees (
+	employee_id INT PRIMARY KEY,
+	position VARCHAR(100) NOT NULL,
+	start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	salary INT NOT NULL,
+	FOREIGN KEY (employee_id) REFERENCES users(user_id)
+    );
+
+12. INSERT INTO users (name, surname, phone_number, email, birthday, reserve_contact_number, user_type)
+    VALUES
+	('John', 'Decker', 1234567890, 'john.decker@example.com', '1985-04-12', 1987654321, 'employee'),
+        ('Jane', 'Smith', 2345678901, 'jane.smith@example.com', '1990-05-23', 1987654322, 'employee');
+
+13. INSERT INTO employees (employee_id, position, start_date, salary)
+    SELECT user_id, 'Librarian', '2020-01-15', 1500
+    FROM users
+    WHERE user_type = 'employee';
+
+14. CREATE TABLE transactions (
+	transaction_id SERIAL PRIMARY KEY,
+	user_id INT,
+	isbn VARCHAR(20),
+	borrow_date DATE,
+	return_date DATE,
+	FOREIGN KEY (user_id) REFERENCES users(user_id),
+	FOREIGN KEY (isbn) REFERENCES books(isbn)
+    );
+
+15. CREATE OR REPLACE FUNCTION check_employee_user_id()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM employees WHERE employee_id = NEW.user_id) THEN
+            RAISE EXCEPTION 'user_id % doesn`t exist in table "employees"', NEW.user_id;
+        END IF;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+16. CREATE TRIGGER check_employee_user_id_trigger
+    BEFORE INSERT OR UPDATE ON transactions
+    FOR EACH ROW EXECUTE FUNCTION check_employee_user_id();
+
+17. INSERT INTO transactions (user_id, isbn, borrow_date, return_date)
+    VALUES
+	((SELECT user_id FROM users WHERE email = 'jane.smith@example.com'), '9780451524935', '2024-05-14', NULL);
